@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 type DashboardStats = {
-  total_processed: number | null;
-  success_rate: number | null;
-  avg_processing_ms: number | null;
-  active_connections: number | null;
+  total_processed: number;
+  success_rate: number;
+  avg_processing_ms: number;
+  active_connections: number;
 };
 
 export function useDashboardStats() {
@@ -13,25 +13,25 @@ export function useDashboardStats() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let cancelled = false;
+    let isMounted = true;
 
     async function fetchStats() {
       setLoading(true);
       const { data, error } = await supabase.rpc("get_dashboard_stats");
-      if (!cancelled) {
-        if (error) {
-          console.error("get_dashboard_stats error:", error);
-          setStats(null);
-        } else {
-          setStats((data && data[0]) ?? null);
-        }
-        setLoading(false);
+      if (!error && isMounted) {
+        setStats(data as DashboardStats);
       }
+      setLoading(false);
     }
 
     fetchStats();
-    const id = setInterval(fetchStats, 10000); // refresh every 10s
-    return () => { cancelled = true; clearInterval(id); };
+
+    // Optional: auto-refresh every 30s
+    const interval = setInterval(fetchStats, 30000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
   return { stats, loading };
