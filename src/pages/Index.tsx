@@ -10,6 +10,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 
+const fmtCurrency = (n: number) =>
+  new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 2,
+  }).format(n);
+
+const fmtDuration = (ms: number | null | undefined) => {
+  if (ms == null) return "—";
+  if (ms >= 1000) return `${(ms / 1000).toFixed(1)} s`;
+  return `${ms.toFixed(0)} ms`;
+};
+
 const Index = () => {
   const [user, setUser] = useState<User | null>(null);
   const navigate = useNavigate();
@@ -59,41 +72,33 @@ const Index = () => {
         </div>
 
         {/* Stat cards (LIVE) */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+        <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <div className="card-tight">
-            <div className="text-slate-500 text-sm">Total Processed</div>
+            <div className="text-sm text-slate-500">Total Processed</div>
             <div className="mt-1 text-2xl font-semibold">
-              {statsLoading
-                ? "—"
-                : `$${Number(stats?.total_processed ?? 0).toLocaleString()}`}
+              {statsLoading ? "—" : fmtCurrency(Number(stats?.total_processed ?? 0))}
             </div>
             <div className="text-xs text-emerald-600" />
           </div>
 
           <div className="card-tight">
-            <div className="text-slate-500 text-sm">Success Rate</div>
+            <div className="text-sm text-slate-500">Success Rate</div>
             <div className="mt-1 text-2xl font-semibold">
-              {statsLoading
-                ? "—"
-                : `${Number(stats?.success_rate ?? 0).toFixed(2)}%`}
+              {statsLoading ? "—" : `${Number(stats?.success_rate ?? 0).toFixed(2)}%`}
             </div>
             <div className="text-xs text-emerald-600" />
           </div>
 
           <div className="card-tight">
-            <div className="text-slate-500 text-sm">Avg Processing</div>
+            <div className="text-sm text-slate-500">Avg Processing</div>
             <div className="mt-1 text-2xl font-semibold">
-              {statsLoading
-                ? "—"
-                : stats?.avg_processing_ms == null
-                ? "—"
-                : `${Number(stats.avg_processing_ms).toFixed(1)} ms`}
+              {statsLoading ? "—" : fmtDuration(stats?.avg_processing_ms ?? null)}
             </div>
             <div className="text-xs text-emerald-600" />
           </div>
 
           <div className="card-tight">
-            <div className="text-slate-500 text-sm">Active Connections</div>
+            <div className="text-sm text-slate-500">Active Connections</div>
             <div className="mt-1 text-2xl font-semibold">
               {statsLoading ? "—" : (stats?.active_connections ?? 0)}
             </div>
@@ -102,7 +107,7 @@ const Index = () => {
         </div>
 
         {/* Quick actions */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
             { label: "New Payment", href: "#new-payment" },
             { label: "Upload Data", href: "#upload-data" },
@@ -116,7 +121,7 @@ const Index = () => {
         </div>
 
         {/* Forms / widgets */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 mb-6">
+        <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
           <div id="new-payment" className="card">
             <PaymentForm />
           </div>
@@ -125,8 +130,8 @@ const Index = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 mb-6">
-          <div id="reconcile" className="col-span-1 lg:col-span-3 card">
+        <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div id="reconcile" className="card col-span-1 lg:col-span-3">
             <ReconciliationEngine />
           </div>
         </div>
