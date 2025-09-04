@@ -1,49 +1,39 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-type Stats = {
-  total_processed: number;
-  success_rate: number;        // percent, e.g., 98.6
-  avg_processing_ms: number;   // e.g., 2000
-  active_users: number;
+type DashboardStats = {
+  total_processed: number | null;
+  success_rate: number | null;
+  avg_processing_ms: number | null;
+  active_connections: number | null;
 };
 
 export function useDashboardStats() {
-  const [stats, setStats] = useState<Stats | null>(null);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
 
-  async function fetchStats() {
-    setLoading(true);
-    const { data, error } = await supabase.rpc("get_dashboard_stats");
-    if (!error && Array.isArray(data) && data.length > 0) {
-      setStats(data[0] as Stats);
-    }
-    setLoading(false);
-  }
-
   useEffect(() => {
+    let cancelled = false;
+
+    async function fetchStats() {
+      setLoading(true);
+      const { data, error } = await supabase.rpc("get_dashboard_stats");
+      if (!cancelled) {
+        if (error) {
+          console.error("get_dashboard_stats error:", error);
+          setStats(null);
+        } else {
+          setStats((data && data[0]) ?? null);
+        }
+        setLoading(false);
+      }
+    }
+
     fetchStats();
+    const id = setInterval(fetchStats, 10000); // refresh every 10s
 
-    // Realtime: whenever payments change, refresh the stats
-    const channel = supabase
-      .channel("dashboard-stats")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "payments" },
-        () => { fetchStats(); }
-      )
-      // Optional: if you use audit_logs for "active users", refresh on that too:
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "audit_logs" },
-        () => { fetchStats(); }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { cancelled = true; clearInterval(id); };
   }, []);
 
-  return { stats, loading, refetch: fetchStats };
+  return { stats, loading };
 }
