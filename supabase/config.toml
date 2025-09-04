@@ -1,0 +1,10 @@
+project_id = "caipxjciwpyltxzxukbo"
+
+[functions.payments]
+verify_jwt = false
+
+[functions.webhooks]
+verify_jwt = false
+
+[functions.retry-webhooks]
+verify_jwt = false
