@@ -5,60 +5,42 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
-interface PaymentRow {
+interface Payment {
   id: string;
   amount_cents: number | null;
   currency: string | null;
   status: string | null;
-  method: string | null;
-  external_id: string | null;
+  payment_method: string | null;
+  external_payment_id: string | null;
   created_at: string;
 }
 
 export function PaymentsList() {
-  const [payments, setPayments] = useState<PaymentRow[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchPayments();
-
-    // (optional) live refresh on DB changes
-    const channel = supabase
-      .channel("payments_changes")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "payments" },
-        () => fetchPayments()
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchPayments = async () => {
     try {
-      setLoading(true);
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) {
-        setPayments([]);
         setLoading(false);
         return;
       }
 
       const { data, error } = await supabase
         .from("payments")
-        .select("id, amount_cents, currency, status, method, external_id, created_at")
+        .select("id, amount_cents, currency, status, payment_method, external_payment_id, created_at")
         .eq("user_id", user.user.id)
-        .order("created_at", { ascending: false })
-        .limit(100);
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setPayments(data || []);
-    } catch (error) {
-      console.error(error);
+      setPayments(data ?? []);
+    } catch (err) {
+      console.error(err);
       toast({
         title: "Error",
         description: "Failed to fetch payments",
@@ -70,31 +52,17 @@ export function PaymentsList() {
   };
 
   const formatAmount = (amount_cents: number | null, currency: string | null) => {
-    const cents = amount_cents ?? 0;
-    const cur = currency || "USD";
-    const amount = cents / 100;
-    try {
-      return new Intl.NumberFormat(undefined, {
-        style: "currency",
-        currency: cur,
-        currencyDisplay: "narrowSymbol",
-        maximumFractionDigits: 2,
-      }).format(amount);
-    } catch {
-      return `$${amount.toFixed(2)}`;
-    }
+    if (amount_cents == null || !currency) return "—";
+    return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(amount_cents / 100);
   };
 
-  const getStatusBadgeClass = (status: string | null) => {
-    switch ((status || "").toLowerCase()) {
+  const getStatusColor = (status: string | null) => {
+    switch (status) {
       case "succeeded":
-      case "completed":
         return "bg-green-100 text-green-800";
-      case "processing":
       case "pending":
         return "bg-yellow-100 text-yellow-800";
       case "failed":
-      case "error":
         return "bg-red-100 text-red-800";
       default:
         return "bg-gray-100 text-gray-800";
@@ -105,7 +73,7 @@ export function PaymentsList() {
     return (
       <Card>
         <CardContent className="p-6">
-          <div className="text-center">Loading payments…</div>
+          <div className="text-center">Loading payments...</div>
         </CardContent>
       </Card>
     );
@@ -118,7 +86,7 @@ export function PaymentsList() {
       </CardHeader>
       <CardContent>
         {payments.length === 0 ? (
-          <div className="py-8 text-center text-muted-foreground">
+          <div className="text-center text-muted-foreground py-8">
             No payments found. Create your first payment above.
           </div>
         ) : (
@@ -136,16 +104,14 @@ export function PaymentsList() {
               {payments.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell className="font-medium">
-                    {formatAmount(p.amount_cents, p.currency)}
+                    {formatAmount(p.amount_cents, p.currency ?? "USD")}
                   </TableCell>
                   <TableCell>
-                    <Badge className={getStatusBadgeClass(p.status)}>
-                      {p.status || "—"}
-                    </Badge>
+                    <Badge className={getStatusColor(p.status)}>{p.status ?? "—"}</Badge>
                   </TableCell>
-                  <TableCell>{p.method || "—"}</TableCell>
+                  <TableCell>{p.payment_method ?? "—"}</TableCell>
                   <TableCell className="font-mono text-sm">
-                    {p.external_id || "—"}
+                    {p.external_payment_id ?? "—"}
                   </TableCell>
                   <TableCell>{new Date(p.created_at).toLocaleDateString()}</TableCell>
                 </TableRow>
