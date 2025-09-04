@@ -31,7 +31,6 @@ export function useDashboardStats() {
 
     fetchStats();
     const id = setInterval(fetchStats, 10000); // refresh every 10s
-
     return () => { cancelled = true; clearInterval(id); };
   }, []);
 
